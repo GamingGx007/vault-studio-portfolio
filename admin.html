@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vault Studio — Admin Panel</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- Supabase JS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- Vercel Speed Insights -->
+  <script defer src="/_vercel/speed-insights/script.js"></script>
+
+  <!-- Vercel Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="has-custom-cursor">
+
+  <!-- ===== PASSWORD GATE ===== -->
+  <div class="admin-gate" id="admin-gate">
+    <div class="admin-gate__card">
+      <h2>Vault Studio</h2>
+      <p>Enter the admin password to continue.</p>
+      <p class="admin-gate__error" id="admin-error"></p>
+      <input
+        type="password"
+        class="admin-gate__input"
+        id="admin-password"
+        placeholder="••••••••"
+        autofocus
+      />
+      <button class="btn btn--primary" style="width: 100%;" id="admin-login-btn">Enter</button>
+    </div>
+  </div>
+
+  <!-- ===== ADMIN PANEL ===== -->
+  <div class="admin-panel" id="admin-panel">
+    <div class="container">
+
+      <div class="admin-panel__header">
+        <h1>Admin Panel</h1>
+        <div style="display: flex; gap: 1rem; align-items: center;">
+          <a href="index.html" class="btn btn--outline btn--small">← Back to Site</a>
+          <button class="btn btn--outline btn--small" id="admin-logout">Logout</button>
+        </div>
+      </div>
+
+      <!-- Add Project Form -->
+      <div class="admin-panel__form">
+        <h3>Add New Project</h3>
+        <form id="add-project-form">
+          <div class="admin-form__grid">
+            <div class="admin-form__field">
+              <label for="project-name">Project Name</label>
+              <input type="text" id="project-name" placeholder="e.g. Luminary Brand" required />
+            </div>
+            <div class="admin-form__field">
+              <label for="project-category">Category</label>
+              <input type="text" id="project-category" placeholder="e.g. Landing Page" required />
+            </div>
+            <div class="admin-form__field">
+              <label for="project-order">Display Order</label>
+              <input type="number" id="project-order" value="0" min="0" />
+            </div>
+            <div class="admin-form__field">
+              <label for="project-thumbnail">Thumbnail Image</label>
+              <input type="file" id="project-thumbnail" accept="image/*" required />
+            </div>
+            <div class="admin-form__field admin-form__field--full">
+              <label>Project Preview Source</label>
+              <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer; font-size: 0.9rem;">
+                  <input type="radio" name="add-source-type" value="file" checked onchange="document.getElementById('add-file-input').style.display='block'; document.getElementById('add-url-input').style.display='none'; document.getElementById('project-html').required=true; document.getElementById('project-url').required=false;" /> Upload HTML File
+                </label>
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer; font-size: 0.9rem;">
+                  <input type="radio" name="add-source-type" value="url" onchange="document.getElementById('add-file-input').style.display='none'; document.getElementById('add-url-input').style.display='block'; document.getElementById('project-html').required=false; document.getElementById('project-url').required=true;" /> External Live URL
+                </label>
+              </div>
+              <div id="add-file-input">
+                <label for="project-html" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Select HTML File</label>
+                <input type="file" id="project-html" accept=".html,.htm" required />
+              </div>
+              <div id="add-url-input" style="display: none;">
+                <label for="project-url" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Live URL Link</label>
+                <input type="url" id="project-url" placeholder="https://my-deployed-project.com" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0.75rem 1rem; font-family: var(--font-body); font-size: 0.9rem;" />
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn--primary" style="margin-top: 1rem;">Upload Project</button>
+        </form>
+      </div>
+
+      <!-- Existing Projects -->
+      <div class="admin-panel__projects-list" style="margin-bottom: var(--spacing-xl);">
+        <h3>Existing Projects</h3>
+        <div id="projects-list">
+          <div class="loading-spinner">
+            <div class="loading-spinner__circle"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Responses -->
+      <div class="admin-panel__projects-list">
+        <h3>Form Responses</h3>
+        <div id="responses-list">
+          <div class="loading-spinner">
+            <div class="loading-spinner__circle"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Edit Project Modal -->
+  <div class="admin-modal-overlay" id="edit-modal">
+    <div class="admin-modal">
+      <div class="admin-modal__header">
+        <h3>Edit Project</h3>
+        <button class="admin-modal__close" id="edit-modal-close" aria-label="Close">✕</button>
+      </div>
+      <form id="edit-project-form">
+        <input type="hidden" id="edit-project-id" />
+        <div class="admin-form__grid">
+          <div class="admin-form__field">
+            <label for="edit-project-name">Project Name</label>
+            <input type="text" id="edit-project-name" required />
+          </div>
+          <div class="admin-form__field">
+            <label for="edit-project-category">Category</label>
+            <input type="text" id="edit-project-category" required />
+          </div>
+          <div class="admin-form__field">
+            <label for="edit-project-order">Display Order</label>
+            <input type="number" id="edit-project-order" min="0" />
+          </div>
+          <div class="admin-form__field">
+            <label for="edit-project-thumbnail">New Thumbnail <span style="font-weight:300;text-transform:none;letter-spacing:0;font-size:0.7rem;">(optional — leave empty to keep current)</span></label>
+            <input type="file" id="edit-project-thumbnail" accept="image/*" />
+          </div>
+          <div class="admin-form__field admin-form__field--full">
+            <label>New Project Preview Source <span style="font-weight:300;text-transform:none;letter-spacing:0;font-size:0.7rem;">(optional — leave empty/unchanged to keep current)</span></label>
+            <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem; margin-bottom: 0.75rem;">
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer; font-size: 0.9rem;">
+                <input type="radio" name="edit-source-type" value="file" checked onchange="document.getElementById('edit-file-input').style.display='block'; document.getElementById('edit-url-input').style.display='none';" /> Upload HTML File
+              </label>
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: normal; cursor: pointer; font-size: 0.9rem;">
+                <input type="radio" name="edit-source-type" value="url" onchange="document.getElementById('edit-file-input').style.display='none'; document.getElementById('edit-url-input').style.display='block';" /> External Live URL
+              </label>
+            </div>
+            <div id="edit-file-input">
+              <label for="edit-project-html" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Select HTML File</label>
+              <input type="file" id="edit-project-html" accept=".html,.htm" />
+            </div>
+            <div id="edit-url-input" style="display: none;">
+              <label for="edit-project-url" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Live URL Link</label>
+              <input type="url" id="edit-project-url" placeholder="https://my-deployed-project.com" style="width: 100%; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0.75rem 1rem; font-family: var(--font-body); font-size: 0.9rem;" />
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;margin-top:1.5rem;">
+          <button type="submit" class="btn btn--primary">Save Changes</button>
+          <button type="button" class="btn btn--outline" id="edit-modal-cancel">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="admin-toast" id="admin-toast"></div>
+
+  <!-- Scripts -->
+  <script src="js/supabase.js"></script>
+  <script src="js/admin.js"></script>
+  <script src="js/cursor.js"></script>
+
+</body>
+</html>
