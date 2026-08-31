@@ -1,5 +1,5 @@
-// SHA-256 hash of password "vault2026"
-const ADMIN_PASSWORD_HASH = '8d7fba82db5554e0fd500b3aa0f72bab3d0fe39cad2cbdc77721345076a866ef';
+// Default SHA-256 hash of fallback password "vault2026"
+const DEFAULT_ADMIN_PASSWORD_HASH = '8d7fba82db5554e0fd500b3aa0f72bab3d0fe39cad2cbdc77721345076a866ef';
 
 // Helper function to calculate SHA-256 hash
 async function sha256(str) {
@@ -20,6 +20,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const logoutBtn = document.getElementById('admin-logout');
   const toastEl = document.getElementById('admin-toast');
 
+  // Fetch active password hash from Supabase DB or fallback
+  async function getActivePasswordHash() {
+    try {
+      const { data, error } = await db
+        .from('vault_settings')
+        .select('value')
+        .eq('key', 'admin_password_hash')
+        .maybeSingle();
+
+      if (data && data.value) {
+        return data.value;
+      }
+    } catch (e) {
+      console.warn('Could not fetch password hash from vault_settings, using fallback.', e);
+    }
+    return DEFAULT_ADMIN_PASSWORD_HASH;
+  }
+
   // Check session
   if (sessionStorage.getItem('vault_admin') === 'true') {
     showPanel();
@@ -35,15 +53,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const value = passwordInput.value.trim();
     if (!value) return;
 
-    const inputHash = await sha256(value);
-    if (inputHash === ADMIN_PASSWORD_HASH) {
-      sessionStorage.setItem('vault_admin', 'true');
-      showPanel();
-    } else {
+    loginBtn.textContent = 'Verifying...';
+    loginBtn.disabled = true;
+
+    try {
+      const targetHash = await getActivePasswordHash();
+      const inputHash = await sha256(value);
+
+      if (inputHash === targetHash) {
+        sessionStorage.setItem('vault_admin', 'true');
+        showPanel();
+      } else {
+        errorMsg.style.display = 'block';
+        errorMsg.textContent = 'Incorrect password. Try again.';
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    } catch (err) {
+      console.error(err);
       errorMsg.style.display = 'block';
-      errorMsg.textContent = 'Incorrect password. Try again.';
-      passwordInput.value = '';
-      passwordInput.focus();
+      errorMsg.textContent = 'Login error. Please try again.';
+    } finally {
+      loginBtn.textContent = 'Enter';
+      loginBtn.disabled = false;
     }
   }
 
@@ -61,6 +93,86 @@ document.addEventListener('DOMContentLoaded', () => {
       gate.style.display = '';
       panel.classList.remove('active');
       passwordInput.value = '';
+    });
+  }
+
+  // Change Password Modal setup
+  const changePwdBtn = document.getElementById('change-pwd-btn');
+  const changePwdModal = document.getElementById('change-pwd-modal');
+  const changePwdClose = document.getElementById('change-pwd-modal-close');
+  const changePwdCancel = document.getElementById('change-pwd-modal-cancel');
+  const changePwdForm = document.getElementById('change-pwd-form');
+
+  if (changePwdBtn) {
+    changePwdBtn.addEventListener('click', () => {
+      changePwdForm.reset();
+      changePwdModal.classList.add('active');
+    });
+  }
+
+  function closeChangePwdModal() {
+    if (changePwdModal) changePwdModal.classList.remove('active');
+  }
+
+  if (changePwdClose) changePwdClose.addEventListener('click', closeChangePwdModal);
+  if (changePwdCancel) changePwdCancel.addEventListener('click', closeChangePwdModal);
+
+  if (changePwdForm) {
+    changePwdForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPwd = document.getElementById('current-pwd').value.trim();
+      const newPwd = document.getElementById('new-pwd').value.trim();
+      const confirmPwd = document.getElementById('confirm-pwd').value.trim();
+      const submitBtn = changePwdForm.querySelector('button[type="submit"]');
+
+      if (newPwd !== confirmPwd) {
+        toast('New passwords do not match!');
+        return;
+      }
+
+      if (newPwd.length < 6) {
+        toast('New password must be at least 6 characters.');
+        return;
+      }
+
+      submitBtn.textContent = 'Updating...';
+      submitBtn.disabled = true;
+
+      try {
+        const activeHash = await getActivePasswordHash();
+        const currentInputHash = await sha256(currentPwd);
+
+        if (currentInputHash !== activeHash) {
+          toast('Current password is incorrect.');
+          submitBtn.textContent = 'Update Password';
+          submitBtn.disabled = false;
+          return;
+        }
+
+        const newHash = await sha256(newPwd);
+
+        const { error } = await db
+          .from('vault_settings')
+          .upsert({
+            key: 'admin_password_hash',
+            value: newHash,
+            updated_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error updating password:', error);
+          toast('Failed to update password in database: ' + error.message);
+        } else {
+          toast('Password updated successfully!');
+          closeChangePwdModal();
+        }
+      } catch (err) {
+        console.error(err);
+        toast('An error occurred while updating password.');
+      } finally {
+        submitBtn.textContent = 'Update Password';
+        submitBtn.disabled = false;
+      }
     });
   }
 
