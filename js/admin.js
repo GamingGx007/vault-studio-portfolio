@@ -222,7 +222,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .from('projects')
         .upload(thumbFileName, thumbnailFile, {
           cacheControl: '3600',
-          upsert: false,
+          contentType: thumbnailFile.type || 'image/png',
+          upsert: true,
         });
 
       if (thumbError) {
@@ -417,7 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
           .from('projects')
           .upload(thumbFileName, thumbnailFile, {
             cacheControl: '3600',
-            upsert: false,
+            contentType: thumbnailFile.type || 'image/png',
+            upsert: true,
           });
 
         if (thumbError) {
