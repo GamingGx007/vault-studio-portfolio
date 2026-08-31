@@ -1,8 +1,13 @@
-// =========================================================
-// Admin Panel — Password Gate, CRUD, File Uploads
-// =========================================================
+// SHA-256 hash of password "vault2026"
+const ADMIN_PASSWORD_HASH = '8d7fba82db5554e0fd500b3aa0f72bab3d0fe39cad2cbdc77721345076a866ef';
 
-const ADMIN_PASSWORD = 'vault2026';
+// Helper function to calculate SHA-256 hash
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   const gate = document.getElementById('admin-gate');
@@ -26,9 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') attemptLogin();
   });
 
-  function attemptLogin() {
+  async function attemptLogin() {
     const value = passwordInput.value.trim();
-    if (value === ADMIN_PASSWORD) {
+    if (!value) return;
+
+    const inputHash = await sha256(value);
+    if (inputHash === ADMIN_PASSWORD_HASH) {
       sessionStorage.setItem('vault_admin', 'true');
       showPanel();
     } else {
