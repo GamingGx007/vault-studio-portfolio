@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Generate unique filenames
       const timestamp = Date.now();
-      const thumbFileName = `thumbnails/${timestamp}_${sanitizeFilename(thumbnailFile.name)}`;
+      const thumbFileName = `${timestamp}_${sanitizeFilename(thumbnailFile.name)}`;
       let finalHtmlUrl = '';
 
       // Upload thumbnail
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Upload new thumbnail if provided
       if (thumbnailFile) {
         const timestamp = Date.now();
-        const thumbFileName = `thumbnails/${timestamp}_${sanitizeFilename(thumbnailFile.name)}`;
+        const thumbFileName = `${timestamp}_${sanitizeFilename(thumbnailFile.name)}`;
 
         const { error: thumbError } = await db.storage
           .from('projects')
